@@ -11,6 +11,7 @@ WC requires at least: 3.0.0
 WC tested up to: 3.7.0
 License:     GPL2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Glossary: wcimc = WooCommerce Indulge Mall Coupons
 */
 
 if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
@@ -28,26 +29,16 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
     //    add_filter('the_content', array($this,'prepend_location_meta_to_content')); //gets our meta data and dispayed it before the content
   //    error_log( print_r( "About to run add_action for admin_menu", true ) );
       if ( is_admin() ){ // admin actions
+        add_action( 'plugins_loaded', array($this, 'wcimc_register_indulge_coupon_type') );
+        add_filter( 'product_type_selector', array($this, 'wcimc_add_indulge_coupon_type') );
         add_action('admin_menu', array($this, 'register_indulge_api_settings_submenu_page')); // Place admin sub menu
         add_action('admin_init', array($this, 'register_indulgemall_settings')); // Whitelist options settings
 
         add_filter( 'product_type_options', array($this, 'add_indulge_coupon_product_option'));  // Add "Indulge Coupon" checkbox, similar to "Virtual" on products
         add_action( 'woocommerce_admin_process_product_object', array($this, 'save_indulge_coupon_product_option')); // Save value of "Indulge Coupon" checkbox
-        /*
-        add_action( 'woocommerce_product_options_advanced', array($this, 'add_indulge_coupon_product_option'));
-         */
-
-        /*
-        add_action( 'woocommerce_product_options_general_product_data', 'misha_option_group' );
-        function misha_option_group() {
-          echo '<div class="option_group">test</div>';
-        }
-         */
-        //add_action( 'woocommerce_product_options_advanced', 'misha_adv_product_options');
-//        add_action( 'woocommerce_product_options_general_product_data', 'add_indulge_coupon_panel_options');
         add_action( 'woocommerce_product_data_panels', 'add_indulge_coupon_tab_options' );
         function add_indulge_coupon_tab_options(){
-          echo '<div id="indulge_sku_tab" class="options_group">';
+          echo '<div id="indulge_sku_tab" class="panel woocommerce_options_panel hidden">';
           woocommerce_wp_text_input( array(
             'id'          => '_indulge_sku',
             'label'       => __( 'Indulge SKU', 'woocommerce' ),
@@ -56,6 +47,16 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
           ) );
           echo '</div>';
         }
+
+        /**
+         * Add a bit of style.
+         */
+        function wcpp_custom_style() {
+          ?><style>
+            #woocommerce-product-data ul.wc-tabs li.indulge_mall_tab a:before { font-family: WooCommerce; content: '\e600'; }
+          </style><?php
+        }
+        add_action( 'admin_head', 'wcpp_custom_style' );
 
         add_action( 'woocommerce_admin_process_product_object', 'save_indulge_coupon_panel_options', 10, 1 );
         /**
@@ -71,50 +72,11 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
           $tabs['indulge_mall'] = array(
             'label'    => 'Indulge Mall',
             'target'   => 'indulge_sku_tab',
-            'class'    => array('show_if_virtual', 'show_if_enable_indulge_coupon'),
+            'class'    => array('show_if_indulge_coupon'),
             'priority' => 21,
           );
           return $tabs;
         }
-        
-       // add_filter( 'woocommerce_product_data_panels', array($this, 'indulge_coupon_options_product_content'));
-        /**
-         * Contents of the gift card options product tab.
-         */
-        /*
-        function indulge_coupon_options_product_content() {
-          global $post;
-
-          // Note the 'id' attribute needs to match the 'target' parameter set above
-          ?><div id='indulge_coupon_options' class='panel woocommerce_options_panel'><?php
-            ?><div class='options_group'><?php
-              woocommerce_wp_text_input( array(
-                'id'          => '_indulge_sku',
-                'label'       => __( 'Indulge SKU', 'woocommerce' ),
-                'desc_tip'    => 'true',
-                'description' => __( 'Enter the Indulge Mall SKU for this coupon.', 'woocommerce' ),
-                'type'        => 'string'
-              ) );
-            ?></div>
-
-          </div><?php
-        }
-         */
-
-
-
-        /*
-add_action( 'woocommerce_process_product_meta', 'misha_save_fields', 10, 2 );
-function misha_save_fields( $id, $post ){
- 
-	//if( !empty( $_POST['super_product'] ) ) {
-		update_post_meta( $id, 'super_product', $_POST['super_product'] );
-	//} else {
-	//	delete_post_meta( $id, 'super_product' );
-	//}
- 
-}
-*/
       } else {
         // non-admin enqueues, actions, and filters
       }
@@ -136,9 +98,6 @@ function misha_save_fields( $id, $post ){
     }
 
     public function register_indulge_api_settings_submenu_page() {
-    //$settings_page = add_submenu_page( 'woocommerce', __( 'WooCommerce settings', 'woocommerce' ), __( 'Settings', 'woocommerce' ), 'manage_woocommerce', 'wc-settings', array( $this, 'settings_page' ) );
-  //    error_log( print_r( "About to run add_action for admin_menu", true ) );
-      //add_options_page( 'Indulge API Settings', 'Indulge API Settings', 'manage_options', 'indulge-api-settings', array($this, 'indulge_api_settings_options_page_callback') );
       add_submenu_page( 'woocommerce', 'Indulge API Settings', 'Indulge API Settings', 'manage_woocommerce', 'indulge-api-settings', array($this, 'indulge_api_settings_options_page_callback') );
     }
 
@@ -228,23 +187,9 @@ function misha_save_fields( $id, $post ){
     /**
      * Add 'Indulge Coupon' product option
      */
-    /*
-    function add_indulge_coupon_product_option() {
-      echo '<div class="options_group">';
-      woocommerce_wp_checkbox( array(
-        'id'            => '_enable_indulge_coupon',
-        'wrapper_class' => 'show_if_simple show_if_virtual',
-        'value'         => get_post_meta( get_the_ID(), '_enable_indulge_coupon', true ),
-        'name'         => __( 'Indulge Coupon', 'woocommerce' ),
-        'desc_tip'      => true,
-        'description'   => __( 'Activates Indulge Mall API to fetch coupon code on payment success.', 'woocommerce' )
-      ) );
-      echo '</div>';
-    }
-     */
     function add_indulge_coupon_product_option( $product_type_options ) {
       $product_type_options['enable_indulge_coupon'] = array(
-        'id'            => 'enable_indulge_coupon',
+        'id'            => '_enable_indulge_coupon',
         'wrapper_class' => 'show_if_virtual',
         'label'         => __( 'Indulge Coupon', 'woocommerce' ),
         'description'   => __( 'Activates Indulge Mall API to fetch coupon code on payment success.', 'woocommerce' ),
@@ -260,12 +205,6 @@ function misha_save_fields( $id, $post ){
       $enable_indulge_coupon = isset( $_POST['_enable_indulge_coupon'] ) ? 'yes' : 'no';
       $product->update_meta_data( '_enable_indulge_coupon', $enable_indulge_coupon );
     }
-/*
-    function save_indulge_coupon_product_option( $post_id ) {
-      $enable_indulge_coupon = isset( $_POST['_enable_indulge_coupon'] ) ? 'yes' : 'no';
-      update_post_meta( $post_id, '_enable_indulge_coupon', $enable_indulge_coupon );
-    }
- */
 
     /*
     function api_settings_validate($input) {
@@ -278,7 +217,19 @@ function misha_save_fields( $id, $post ){
       return $options;
     }
      */
+
+    /*
+     * Add custom product type: Indulge Coupon to product types
+     */
+    function wcimc_add_indulge_coupon_type ( $type ) {
+      // Key should be exactly the same as in the class product_type
+      $type[ 'indulge_coupon' ] = __( 'Indulge Coupon' );
+      return $type;
+    }
+
   }
+
+  include(plugin_dir_path(__FILE__) . 'inc/wc-product-indulge-coupon.php');
 
   //error_log( print_r( "About to create WC_Indulgemall_Coupons", true ) );
   new WC_Indulgemall_Coupons();
@@ -286,3 +237,4 @@ function misha_save_fields( $id, $post ){
 
 register_activation_hook(__FILE__, array('WC_Indulgemall_Coupons','plugin_activate')); //activate hook
 register_deactivation_hook(__FILE__, array('WC_Indulgemall_Coupons','plugin_deactivate')); //deactivate hook
+
