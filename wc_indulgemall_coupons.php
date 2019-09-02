@@ -19,21 +19,12 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
 
     //magic function (triggered on initialization)
     public function __construct(){
-
-    //    add_action('init', array($this,'set_location_trading_hour_days')); //sets the default trading hour days (used by the content type)
-    //    add_action('init', array($this,'register_location_content_type')); //register location content type
-    //    add_action('add_meta_boxes', array($this,'add_location_meta_boxes')); //add meta boxes
-    //    add_action('save_post_wp_locations', array($this,'save_location')); //save location
     //    add_action('admin_enqueue_scripts', array($this,'enqueue_admin_scripts_and_styles')); //admin scripts and styles
     //    add_action('wp_enqueue_scripts', array($this,'enqueue_public_scripts_and_styles')); //public scripts and styles
-    //    add_filter('the_content', array($this,'prepend_location_meta_to_content')); //gets our meta data and dispayed it before the content
-    //  error_log( print_r( "About to run add_action for admin_menu", true ) );
-      //&& is_user_logged_in() 
       add_action( 'plugins_loaded', 'wcimc_register_indulge_coupon_type' ); // Included with inc/wc-product-indulge-coupon.php
       add_filter( 'product_type_selector', array($this, 'wcimc_add_indulge_coupon_type') );
-      add_action( 'woocommerce_payment_complete', array($this, 'fetch_coupon_and_process'));
+//      add_action( 'woocommerce_payment_complete', array($this, 'fetch_coupon_and_process'));
       add_action( 'woocommerce_order_status_completed', array($this, 'fetch_coupon_and_process'));
-      add_action( 'woocommerce_order_item_meta_end', array($this, 'order_item_meta_end'), 10, 4 );
       add_action( 'woocommerce_single_product_summary', array($this, 'indulge_coupon_template'), 60 );
 
       if ( is_admin() ){ // admin actions
@@ -52,13 +43,10 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
 
         add_filter( 'woocommerce_product_data_tabs', array($this, 'indulge_sku_settings_tab'));
         add_action( 'woocommerce_admin_process_product_object', array($this, 'save_indulge_coupon_tab_options'), 10, 1);
-
-        //global $wp_filter; // test is register action name with callback function
- //       error_log("........................................");
-        //error_log(print_r($wp_filter, true));
-
+        add_filter( 'woocommerce_hidden_order_itemmeta', array($this, 'add_indulge_coupon_code_to_hidden_order_itemmeta'), 10, 1 );
       } else {
         // non-admin enqueues, actions, and filters
+        add_action( 'woocommerce_order_item_meta_end', array($this, 'order_item_meta_end'), 10, 4 );
         //add_filter( 'woocommerce_locate_template', array($this, 'override_wc_locate_template'), 10, 3 );  // Override wc_locate_template result from WC so we can override WC templates
       }
 
@@ -164,11 +152,6 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
           update_option('indulge_api_settings', $options);
         }
       }
-      /*
-      if ( $options === false ) { // Nothing yet saved
-        update_option( 'my_setting', 'default_stuff' );
-      }
-       */
       echo '<p>Last Request ID No.: ' . $options['last_request_id'] . '</p>';
     }
     function activate_staging_html_callback() {
@@ -177,7 +160,6 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
 
     function request_id_prefix_input_callback() {
       $options = get_option('indulge_api_settings');
-      //echo "<label for='indulge_api_settings[request_id_prefix]'>Supplied by Indulge Mall to avoid conflicts:</label>";
       echo "<input id='request_id_prefix' name='indulge_api_settings[request_id_prefix]' size='5' type='text' value='{$options['request_id_prefix']}' />";
       echo "<small> Supplied by Indulge Mall</small>";
     }
@@ -363,10 +345,11 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
               //error_log( "Response: " . print_r($response, true));
  //           }
             // Fake it! As though we successfully fetched coupon
+            $note = __("Coupon successfully fetched from Indulge Mall.");
+            //$note = __("There was an error: " . $response);
+            $order->add_order_note( $note );
             $coupon = 'X43363';
             wc_add_order_item_meta($item_id, '_indulge_coupon_code', $coupon, true ); 
-//            $product->add_meta_data( '_indulge_coupon_code', $coupon, true );
-
           }
         }
       }
@@ -380,15 +363,8 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
       $order_status = $order->get_status();
       if ($order_status === 'completed') {
         $product = $item->get_product();
-        $my_type = $product->get_type();
-        if ($product->is_virtual()) {
-          error_log("is_virtual");
-        }
-        error_log("type: " . $my_type);
-        error_log("children: " . print_r($product->get_children(), true));
         if ($product && "indulge_coupon" === $product->get_type()) {
           $coupon_code = wc_get_order_item_meta( $item_id, '_indulge_coupon_code');
-  //        $coupon_code = $item->get_meta( '_indulge_coupon_code', true );
           echo '<p> Coupon code: <b>' . $coupon_code . '</b></p>';
         }
       }
@@ -415,6 +391,15 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
       return $type;
     }
 
+    /*
+     * Add _indulge_coupon_code meta key to list of hidden items in order itemmeta
+     * Admin Edit Order
+     */
+    function add_indulge_coupon_code_to_hidden_order_itemmeta( $array ) {
+        array_push($array, '_indulge_coupon_code');
+        return $array; 
+    }
+
     /**
      * Hides the shipping tab for Indulge Coupon products
      */
@@ -435,15 +420,8 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
     function indulge_coupon_template() {
       global $product;
       if ( 'indulge_coupon' == $product->get_type() ) {
-        //$template_path = plugin_dir_path( __FILE__ ) . 'templates/';
-        // Load the template
+        // Just use simple.php, as 'indulge_coupon' inherits from it.
         wc_get_template( 'single-product/add-to-cart/simple.php' );
-        /*
-        wc_get_template( 'single-product/add-to-cart/gift_card.php',
-          '',
-          '',
-          trailingslashit( $template_path ) );
-         */
       }
     }
     /**
@@ -451,12 +429,10 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
      * From version 3.3.0
      */
     function override_wc_locate_template( $template, $template_name, $template_path ) {
-      error_log( "Template: Check" );
       $wcimc_plugin_path  = untrailingslashit( plugin_dir_path( __FILE__ ) ) . '/woocommerce/';
       if ( file_exists( $wcimc_plugin_path . $template_name ) ) {
         $template = $wcimc_plugin_path . $template_name;
       }
-      error_log( "Template: " . print_r($template, true) );
       return $template;
     }
 
@@ -482,8 +458,6 @@ if ( ! class_exists( 'WC_Indulgemall_Coupons' ) ) {
   }
 
   include(plugin_dir_path(__FILE__) . 'inc/wc-product-indulge-coupon.php');
-
-  //error_log( print_r( "About to create WC_Indulgemall_Coupons", true ) );
   new WC_Indulgemall_Coupons();
 }
 
