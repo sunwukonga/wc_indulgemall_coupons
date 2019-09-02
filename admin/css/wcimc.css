@@ -1,0 +1,31 @@
+.wrap form table.form-table {
+  margin-left: 2em;
+}
+
+table.wcimc_table {
+  border-collapse: collapse;
+}
+
+table.wcimc_table td {
+  padding-top: 0px; 
+  padding-bottom: 0px; 
+}
+
+table.wcimc_table td>b {
+  color: green;
+}
+
+table.wcimc_table thead {
+  padding-top: 0px; 
+  padding-bottom: 0px; 
+}
+
+table.wcimc_table th {
+  padding-top: 0px; 
+  padding-bottom: 0px; 
+}
+
+table.wcimc_table tr {
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
